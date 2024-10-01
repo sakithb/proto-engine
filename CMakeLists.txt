@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.30)
-project(proto-engine)
+project(proto-engine C)
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
