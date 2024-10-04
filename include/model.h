@@ -5,8 +5,8 @@
 #include <cglm/struct.h>
 
 struct material {
-	GLuint diffuse_map;
-	GLuint specular_map;
+	GLuint *diffuse_map;
+	GLuint *specular_map;
 };
 
 struct mesh {
@@ -30,7 +30,7 @@ struct model {
 	size_t textures_num;
 };
 
-void model_load(struct model *model, const char *path);
+void model_init(struct model *model, const char *path);
 void model_draw(struct model *model, GLuint shader);
 void model_free(struct model *model);
 

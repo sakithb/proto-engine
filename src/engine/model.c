@@ -5,7 +5,7 @@
 #include "model_fmt.h"
 #include "model.h"
 
-void model_load(struct model *model, const char *path) {
+void model_init(struct model *model, const char *path) {
 	FILE *f = fopen(path, "rb");
 
 	struct header_fmt header;
@@ -21,7 +21,7 @@ void model_load(struct model *model, const char *path) {
 
 	int uint_diff = sizeof(GLuint) - sizeof(uint32_t);
 	if (uint_diff < 0) {
-		perror("sizeof(GLuint) is smaller than sizeof(uint32_t)");
+		fprintf(stderr, "sizeof(GLuint) is smaller than sizeof(uint32_t)");
 		abort();
 	}
 	size_t indices_size = header.indices_num * (uint_diff > 0 ? sizeof(GLuint) : sizeof(uint32_t));
@@ -82,7 +82,7 @@ void model_load(struct model *model, const char *path) {
 		fseek(f, header.textures_off + (i * sizeof(struct texture_fmt)), SEEK_SET);
 		fread(&tex_fmt, sizeof(struct texture_fmt), 1, f);
 
-		if (buf_size > tex_fmt.len) {
+		if (buf_size < tex_fmt.len) {
 			buf_size = tex_fmt.len;
 			buf = reallocs(buf, buf_size);
 		}
@@ -92,7 +92,12 @@ void model_load(struct model *model, const char *path) {
 
 		GLuint tex = model->textures[i];
 		glBindTexture(GL_TEXTURE_2D, tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_fmt.width, tex_fmt.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+		glGenerateMipmap(GL_TEXTURE_2D);
 	}
 
 	fseek(f, header.materials_off, SEEK_SET);
@@ -101,8 +106,18 @@ void model_load(struct model *model, const char *path) {
 		fread(&mat_fmt, sizeof(struct material_fmt), 1, f);
 
 		struct material *mat = &model->materials[i];
-		mat->diffuse_map = model->textures[mat_fmt.diffuse_map_idx];
-		mat->specular_map = model->textures[mat_fmt.specular_map_idx];
+
+		if (mat_fmt.diffuse_map_idx != -1) {
+			mat->diffuse_map = &model->textures[mat_fmt.diffuse_map_idx];
+		} else {
+			mat->diffuse_map = NULL;
+		}
+
+		if (mat_fmt.specular_map_idx != -1) {
+			mat->specular_map = &model->textures[mat_fmt.specular_map_idx];
+		} else {
+			mat->specular_map = NULL;
+		}
 	}
 
 	free(buf);
@@ -115,13 +130,22 @@ void model_draw(struct model *model, GLuint shader) {
 	for (int i = 0; i < model->meshes_num; i++) {
 		struct mesh *mesh = &model->meshes[i];
 
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, mesh->material->diffuse_map);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, mesh->material->specular_map);
+		if (mesh->material->diffuse_map != NULL) {
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, *mesh->material->diffuse_map);
+			shader_set_int(shader, "mat.diffuse", 0);
+		} else {
+			shader_set_int(shader, "mat.diffuse", -1);
+		}
 
-		shader_set_int(shader, "material.diffuse", 0);
-		shader_set_int(shader, "material.specular", 1);
+
+		if (mesh->material->specular_map != NULL) {
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, *mesh->material->specular_map);
+			shader_set_int(shader, "mat.specular", 1);
+		} else {
+			shader_set_int(shader, "mat.specular", -1);
+		}
 
 		glDrawElements(GL_TRIANGLES, mesh->ebo_num, GL_UNSIGNED_INT, (void*)(uintptr_t)mesh->ebo_off);
 	}

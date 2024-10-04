@@ -49,6 +49,10 @@ void camera_move(struct camera *cam, enum camera_direction dir, float delta_time
 	}
 }
 
+mat4s camera_lookat(struct camera *cam) {
+	return glms_lookat(cam->pos, glms_vec3_add(cam->pos, cam->front), cam->up);
+}
+
 static void camera_update(struct camera *cam) {
 	vec3s front;
 	front.x = cos(glm_rad(cam->yaw)) * cos(glm_rad(cam->pitch));

@@ -19,9 +19,9 @@ set(ASSIMP_NO_EXPORT ON)
 set(ASSIMP_BUILD_TESTS OFF)
 add_subdirectory(vendor/assimp)
 
-# add_library(stb INTERFACE)
-# target_compile_definitions(stb INTERFACE STB_IMAGE_IMPLEMENTATION)
-# target_include_directories(stb INTERFACE vendor/stb)
+add_library(stb INTERFACE)
+target_compile_definitions(stb INTERFACE STB_IMAGE_IMPLEMENTATION)
+target_include_directories(stb INTERFACE vendor/stb)
 
 # Targets
 
@@ -35,4 +35,4 @@ target_link_libraries(engine PRIVATE glad glfw cglm_headers m)
 
 file(GLOB_RECURSE MESH_LOADER_SRCS CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/src/mesh_loader/*.c) 
 add_executable(mesh_loader ${MESH_LOADER_SRCS})
-target_link_libraries(mesh_loader PRIVATE assimp)
+target_link_libraries(mesh_loader PRIVATE assimp stb)

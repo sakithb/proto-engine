@@ -36,8 +36,8 @@ struct texture_fmt {
 };
 
 struct material_fmt {
-	uint16_t diffuse_map_idx;
-	uint16_t specular_map_idx;
+	int16_t diffuse_map_idx;
+	int16_t specular_map_idx;
 };
 
 #pragma pack()

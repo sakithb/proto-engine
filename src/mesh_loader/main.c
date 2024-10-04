@@ -1,15 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "assimp/cimport.h"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
+#include "stb_image.h"
 #include "memutils.h"
 #include "model_fmt.h"
 
 void model_process(const char *path);
 void model_process_meshes(const struct aiScene *scene, struct header_fmt *header, FILE *f);
 void model_process_materials(const struct aiScene *scene, struct header_fmt *header, FILE *f);
+static inline int model_process_material_texture(const struct aiScene *scene, const struct aiMaterial *ai_mat, enum aiTextureType tex_type, struct texture_fmt *tex, FILE *f);
 
 int main(int argc, char **argv) {
 	for (int i = 1; i < argc; i++) {
@@ -29,7 +32,7 @@ void model_process(const char *path) {
 
 	char *d = strrchr(path, '.');
 	if (d == NULL) {
-		perror("Invalid file extension");
+		fprintf(stderr, "Invalid file extension");
 		abort();
 	}
 
@@ -47,10 +50,21 @@ void model_process(const char *path) {
 	struct header_fmt header = {0};
 	fwrite(&header, sizeof(struct header_fmt), 1, f);
 
-	const struct aiScene *scene = aiImportFile(path, aiProcess_Triangulate | aiProcess_EmbedTextures);
+	const struct aiScene *scene = aiImportFile(path, 
+		aiProcess_Triangulate |
+		aiProcess_GenNormals |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_GenUVCoords |
+		aiProcess_OptimizeGraph |
+		aiProcess_OptimizeMeshes |
+		aiProcess_SortByPType |
+		aiProcess_RemoveRedundantMaterials
+	);
 
 	model_process_meshes(scene, &header, f);
 	model_process_materials(scene, &header, f);
+
+	aiReleaseImport(scene);
 
 	fseek(f, 0, SEEK_SET);
 	fwrite(&header, sizeof(struct header_fmt), 1, f);
@@ -95,7 +109,14 @@ void model_process_meshes(const struct aiScene *scene, struct header_fmt *header
 		for (int j = 0; j < ai_mesh->mNumVertices; j++) {
 			struct aiVector3D vertex = ai_mesh->mVertices[j];
 			struct aiVector3D normal = ai_mesh->mNormals[j];
-			struct aiVector3D uv = ai_mesh->mTextureCoords[0][j];
+
+			struct aiVector3D uv = {0};
+			for (int k = 0; k < AI_MAX_NUMBER_OF_TEXTURECOORDS; k++) {
+				if (ai_mesh->mNumUVComponents[k] == 2) {
+					uv = ai_mesh->mTextureCoords[k][j];
+					break;
+				}
+			}
 
 			float *p = vertices + (vertices_c * 8);
 			p[0] = vertex.x;
@@ -129,66 +150,46 @@ void model_process_meshes(const struct aiScene *scene, struct header_fmt *header
 }
 
 void model_process_materials(const struct aiScene *scene, struct header_fmt *header, FILE *f) {
+	size_t tex_num = 0;
+	for (int i = 0; i < scene->mNumMaterials; i++) {
+		const struct aiMaterial *ai_mat = scene->mMaterials[i];
+
+		if (aiGetMaterialTextureCount(ai_mat, aiTextureType_DIFFUSE) > 0) {
+			tex_num++;
+		}
+
+		if (aiGetMaterialTextureCount(ai_mat, aiTextureType_SPECULAR) > 0) {
+			tex_num++;
+		}
+	}
+
 	struct material_fmt *mats = mallocs(scene->mNumMaterials * sizeof(struct material_fmt));
-	struct texture_fmt *texs = mallocs(scene->mNumTextures * sizeof(struct texture_fmt));
-	size_t tex_c = 0;
+	struct texture_fmt *texs = mallocs(tex_num * sizeof(struct texture_fmt));
+
+	size_t tex_i = 0;
 	for (int i = 0; i < scene->mNumMaterials; i++) {
 		const struct aiMaterial *ai_mat = scene->mMaterials[i];
 		struct material_fmt *mat = &mats[i];
 		struct aiString path;
 
-		if (aiGetMaterialTextureCount(ai_mat, aiTextureType_DIFFUSE) > 0) {
-			aiGetMaterialTexture(ai_mat, aiTextureType_DIFFUSE, 0, &path, NULL, NULL, NULL, NULL, NULL, NULL);
-
-			const struct aiTexture *ai_tex = aiGetEmbeddedTexture(scene, path.data);
-			if (ai_tex != NULL) {
-				if (ai_tex->mHeight == 0) {
-					perror("Compressed textures not supported");
-					abort();
-				}
-
-				size_t len = ai_tex->mWidth * ai_tex->mHeight * 4;
-
-				struct texture_fmt *tex = &texs[tex_c];
-				tex->off = ftell(f);
-				tex->len = len;
-				tex->width = ai_tex->mWidth;
-				tex->height = ai_tex->mHeight;
-				mat->diffuse_map_idx = tex_c;
-				tex_c++;
-
-				fwrite(ai_tex->pcData, sizeof(uint8_t), len, f);
-			}
+		if (model_process_material_texture(scene, ai_mat, aiTextureType_DIFFUSE, &texs[tex_i], f) == 0) {
+			mat->diffuse_map_idx = tex_i;
+			tex_i++;
+		} else {
+			mat->diffuse_map_idx = -1;
 		}
 
-		if (aiGetMaterialTextureCount(ai_mat, aiTextureType_SPECULAR) > 0) {
-			aiGetMaterialTexture(ai_mat, aiTextureType_SPECULAR, 0, &path, NULL, NULL, NULL, NULL, NULL, NULL);
-
-			const struct aiTexture *ai_tex = aiGetEmbeddedTexture(scene, path.data);
-			if (ai_tex != NULL) {
-				if (ai_tex->mHeight == 0) {
-					perror("Compressed textures not supported");
-					abort();
-				}
-
-				size_t len = ai_tex->mWidth * ai_tex->mHeight * 4;
-
-				struct texture_fmt *tex = &texs[tex_c];
-				tex->off = ftell(f);
-				tex->len = len;
-				tex->width = ai_tex->mWidth;
-				tex->height = ai_tex->mHeight;
-				mat->specular_map_idx = tex_c;
-				tex_c++;
-
-				fwrite(ai_tex->pcData, sizeof(uint8_t), len, f);
-			}
+		if (model_process_material_texture(scene, ai_mat, aiTextureType_SPECULAR, &texs[tex_i], f) == 0) {
+			mat->specular_map_idx = tex_i;
+			tex_i++;
+		} else {
+			mat->specular_map_idx = -1;
 		}
 	}
 
 	header->textures_off = ftell(f);
-	header->textures_num = tex_c;
-	fwrite(texs, sizeof(struct texture_fmt), tex_c, f);
+	header->textures_num = tex_num;
+	fwrite(texs, sizeof(struct texture_fmt), tex_num, f);
 
 	header->materials_off = ftell(f);
 	header->materials_num = scene->mNumMaterials;
@@ -196,4 +197,61 @@ void model_process_materials(const struct aiScene *scene, struct header_fmt *hea
 
 	free(texs);
 	free(mats);
+}
+
+static inline int model_process_material_texture(const struct aiScene *scene, const struct aiMaterial *ai_mat, enum aiTextureType tex_type, struct texture_fmt *tex, FILE *f) {
+	if (aiGetMaterialTextureCount(ai_mat, tex_type) > 0) {
+		struct aiString path;
+		if (aiGetMaterialTexture(ai_mat, tex_type, 0, &path, NULL, NULL, NULL, NULL, NULL, NULL) == aiReturn_FAILURE) {
+			fprintf(stderr, "Failed to get material texture");
+			abort();
+		}
+
+		const struct aiTexture *ai_tex = aiGetEmbeddedTexture(scene, path.data);
+		if (ai_tex != NULL && ai_tex->mHeight > 0) {
+			assert(ai_tex->mWidth > 0);
+
+			for (int i = 0; i < ai_tex->mWidth * ai_tex->mHeight; i++) {
+				struct aiTexel t = ai_tex->pcData[i];
+				struct aiTexel *p = &ai_tex->pcData[i];
+
+				p->b = t.r;
+				p->g = t.g;
+				p->r = t.b;
+				p->a = t.a;
+			}
+
+			tex->off = ftell(f);
+			tex->len = ai_tex->mWidth * ai_tex->mHeight * 4;
+			tex->width = ai_tex->mWidth;
+			tex->height = ai_tex->mHeight;
+
+			fwrite(ai_tex->pcData, sizeof(uint8_t), tex->len, f);
+		} else {
+			stbi_set_flip_vertically_on_load(1);
+
+			stbi_uc *data;
+			int w, h, n;
+			if (ai_tex != NULL) {
+				data = stbi_load_from_memory((void*)ai_tex->pcData, ai_tex->mWidth, &w, &h, &n, 4);
+			} else {
+				data = stbi_load(path.data, &w, &h, &n, 4);
+			}
+
+			assert(data != NULL);
+
+			tex->off = ftell(f);
+			tex->len = w * h * 4;
+			tex->width = w;
+			tex->height = h;
+
+			fwrite(data, sizeof(stbi_uc), tex->len, f);
+
+			stbi_image_free(data);
+		}
+
+		return 0;
+	} else {
+		return -1;
+	}
 }
