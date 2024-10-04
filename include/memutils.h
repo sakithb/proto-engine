@@ -13,6 +13,15 @@
 		p; \
 	})
 
+#define reallocs(old, size) ({ \
+		void *p = realloc(old, size); \
+		if (p == NULL) { \
+			perror("Failed to allocate (realloc) memory\n"); \
+			abort(); \
+		} \
+		p; \
+	})
+
 #define callocs(nmemb, size) ({ \
 		void *p = calloc(nmemb, size); \
 		if (p == NULL) { \

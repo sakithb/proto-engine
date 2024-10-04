@@ -7,12 +7,12 @@
 struct material {
 	GLuint diffuse_map;
 	GLuint specular_map;
-	GLfloat shininess;
 };
 
 struct mesh {
 	struct material *material;
-	GLsizei ebo_offset;
+	GLsizei ebo_off;
+	GLsizei ebo_num;
 };
 
 struct model {
@@ -23,8 +23,14 @@ struct model {
 	struct mesh *meshes;
 	size_t meshes_num;
 
+	struct material *materials;
+	size_t materials_num;
+
 	GLuint *textures;
 	size_t textures_num;
 };
+
+void model_load(struct model *model, const char *path);
+void model_free(struct model *model);
 
 #endif

@@ -7,3 +7,9 @@
 [submodule "vendor/glad"]
 	path = vendor/glad
 	url = git@github.com:Dav1dde/glad.git
+[submodule "vendor/assimp"]
+	path = vendor/assimp
+	url = git@github.com:assimp/assimp.git
+[submodule "vendor/stb"]
+	path = vendor/stb
+	url = git@github.com:nothings/stb.git
