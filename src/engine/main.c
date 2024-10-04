@@ -2,6 +2,9 @@
 #include "glad/gl.h"
 #include "GLFW/glfw3.h"
 #include "cglm/struct.h"
+#include "shader.h"
+
+void window_resize_cb(GLFWwindow *window, int width, int height);
 
 int scr_width = 1280;
 int scr_height = 720;
@@ -20,6 +23,7 @@ int main() {
 	}
 
 	glfwMakeContextCurrent(window);
+	glfwSetWindowSizeCallback(window, window_resize_cb);
 
 	if (!gladLoadGL(glfwGetProcAddress)) {
 		glfwTerminate();
@@ -29,12 +33,27 @@ int main() {
 
 	glViewport(0, 0, scr_width, scr_height);
 
+	GLuint shader;
+	shader_init(&shader, "assets/shaders/default.vert", "assets/shaders/default.frag");
+
 	while(!glfwWindowShouldClose(window)) {
+		glClearColor(0, 0, 0, 0);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		glUseProgram(shader);
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();    
 	}
 
+	glDeleteProgram(shader);
 	glfwTerminate();
 
 	return 0;
+}
+
+void window_resize_cb(GLFWwindow *window, int width, int height) {
+	scr_width = width;
+	scr_height = height;
+	glViewport(0, 0, scr_width, scr_height);
 }

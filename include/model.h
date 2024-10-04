@@ -31,6 +31,7 @@ struct model {
 };
 
 void model_load(struct model *model, const char *path);
+void model_draw(struct model *model, GLuint shader);
 void model_free(struct model *model);
 
 #endif

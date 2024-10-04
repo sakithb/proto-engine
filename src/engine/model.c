@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "glad/gl.h"
 #include "memutils.h"
+#include "shader.h"
 #include "model_fmt.h"
 #include "model.h"
 
@@ -18,10 +19,21 @@ void model_load(struct model *model, const char *path) {
 	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ebo);
 
-	size_t indices_size = header.indices_num * sizeof(uint32_t);
+	int uint_diff = sizeof(GLuint) - sizeof(uint32_t);
+	if (uint_diff < 0) {
+		perror("sizeof(GLuint) is smaller than sizeof(uint32_t)");
+		abort();
+	}
+	size_t indices_size = header.indices_num * (uint_diff > 0 ? sizeof(GLuint) : sizeof(uint32_t));
 	uint32_t *indices = mallocs(indices_size);
 	fseek(f, header.indices_off, SEEK_SET);
 	fread(indices, sizeof(uint32_t), header.indices_num, f);
+	if (uint_diff > 0) {
+		for (int i = header.indices_num - 1; i >= 0; i--) {
+			uint32_t idx = indices[i];
+			*(indices + (indices_size - ((header.indices_num - i) * sizeof(GLuint)))) = (GLuint)idx;
+		}
+	}
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, indices, GL_STATIC_DRAW);
 
 	size_t vertices_size = header.vertices_num * 8 * sizeof(float);
@@ -67,22 +79,21 @@ void model_load(struct model *model, const char *path) {
 	uint8_t *buf = (uint8_t*)vertices;
 	for (int i = 0; i < model->textures_num; i++) {
 		struct texture_fmt tex_fmt;
-		fseek(f, header.textures_off, SEEK_SET);
+		fseek(f, header.textures_off + (i * sizeof(struct texture_fmt)), SEEK_SET);
 		fread(&tex_fmt, sizeof(struct texture_fmt), 1, f);
 
-		if (buf_size > tex_fmt.len * sizeof(uint8_t)) {
-			buf_size = tex_fmt.len * sizeof(uint8_t);
-			buf = realloc(buf, buf_size);
+		if (buf_size > tex_fmt.len) {
+			buf_size = tex_fmt.len;
+			buf = reallocs(buf, buf_size);
 		}
 
 		fseek(f, tex_fmt.off, SEEK_SET);
-		fread(buf, sizeof(uint8_t), tex_fmt.len, f);
+		fread(buf, 1, tex_fmt.len, f);
 
 		GLuint tex = model->textures[i];
 		glBindTexture(GL_TEXTURE_2D, tex);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_fmt.width, tex_fmt.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
 	}
-
 
 	fseek(f, header.materials_off, SEEK_SET);
 	for (int i = 0; i < model->materials_num; i++) {
@@ -96,6 +107,24 @@ void model_load(struct model *model, const char *path) {
 
 	free(buf);
 	fclose(f);
+}
+
+void model_draw(struct model *model, GLuint shader) {
+	glBindVertexArray(model->vao);
+
+	for (int i = 0; i < model->meshes_num; i++) {
+		struct mesh *mesh = &model->meshes[i];
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, mesh->material->diffuse_map);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, mesh->material->specular_map);
+
+		shader_set_int(shader, "material.diffuse", 0);
+		shader_set_int(shader, "material.specular", 1);
+
+		glDrawElements(GL_TRIANGLES, mesh->ebo_num, GL_UNSIGNED_INT, (void*)(uintptr_t)mesh->ebo_off);
+	}
 }
 
 void model_free(struct model *model) {

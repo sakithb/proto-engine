@@ -174,8 +174,8 @@ void model_process_materials(const struct aiScene *scene, struct header_fmt *hea
 				size_t len = ai_tex->mWidth * ai_tex->mHeight * 4;
 
 				struct texture_fmt *tex = &texs[tex_c];
-				tex->len = ftell(f);
-				tex->off = len;
+				tex->off = ftell(f);
+				tex->len = len;
 				tex->width = ai_tex->mWidth;
 				tex->height = ai_tex->mHeight;
 				mat->specular_map_idx = tex_c;
@@ -187,8 +187,8 @@ void model_process_materials(const struct aiScene *scene, struct header_fmt *hea
 	}
 
 	header->textures_off = ftell(f);
-	header->textures_num = tex_c + 1;
-	fwrite(texs, sizeof(struct texture_fmt), tex_c + 1, f);
+	header->textures_num = tex_c;
+	fwrite(texs, sizeof(struct texture_fmt), tex_c, f);
 
 	header->materials_off = ftell(f);
 	header->materials_num = scene->mNumMaterials;

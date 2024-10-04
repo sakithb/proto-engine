@@ -1,2 +1,4 @@
 build/
+asset/test_models/*
+asset/models/*
 
