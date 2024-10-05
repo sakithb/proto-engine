@@ -5,8 +5,8 @@
 #include <cglm/struct.h>
 
 struct material {
-	GLuint *diffuse_map;
-	GLuint *specular_map;
+	GLuint *albedo_map;
+	vec4s albedo_tint;
 };
 
 struct mesh {

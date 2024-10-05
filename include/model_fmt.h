@@ -12,8 +12,8 @@ struct header_fmt {
 	uint32_t indices_off;
 	uint32_t indices_num;
 
-	uint32_t vertices_off;
-	uint32_t vertices_num;
+	uint32_t attrs_off;
+	uint32_t attrs_num;
 
 	uint32_t textures_off;
 	uint32_t textures_num;
@@ -23,9 +23,15 @@ struct header_fmt {
 };
 
 struct mesh_fmt {
-	uint16_t material_idx;
+	int16_t material_idx;
 	uint32_t indices_idx;
 	uint32_t indices_num;
+};
+
+struct attr_fmt {
+	float position[3];
+	float normal[3];
+	float uv[2];
 };
 
 struct texture_fmt {
@@ -36,8 +42,8 @@ struct texture_fmt {
 };
 
 struct material_fmt {
-	int16_t diffuse_map_idx;
-	int16_t specular_map_idx;
+	int16_t albedo_map;
+	float albedo_tint[4];
 };
 
 #pragma pack()

@@ -15,9 +15,9 @@ glad_add_library(glad REPRODUCIBLE API gl:core=4.6)
 set(CGLM_STATIC ON)
 add_subdirectory(vendor/cglm EXCLUDE_FROM_ALL)
 
-set(ASSIMP_NO_EXPORT ON)
-set(ASSIMP_BUILD_TESTS OFF)
-add_subdirectory(vendor/assimp)
+add_library(cgltf INTERFACE)
+target_compile_definitions(cgltf INTERFACE CGLTF_IMPLEMENTATION)
+target_include_directories(cgltf INTERFACE vendor/cgltf)
 
 add_library(stb INTERFACE)
 target_compile_definitions(stb INTERFACE STB_IMAGE_IMPLEMENTATION)
@@ -35,4 +35,4 @@ target_link_libraries(engine PRIVATE glad glfw cglm_headers m)
 
 file(GLOB_RECURSE MESH_LOADER_SRCS CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/src/mesh_loader/*.c) 
 add_executable(mesh_loader ${MESH_LOADER_SRCS})
-target_link_libraries(mesh_loader PRIVATE assimp stb)
+target_link_libraries(mesh_loader PRIVATE cgltf cglm_headers stb m)

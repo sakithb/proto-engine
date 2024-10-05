@@ -13,3 +13,6 @@
 [submodule "vendor/stb"]
 	path = vendor/stb
 	url = git@github.com:nothings/stb.git
+[submodule "vendor/cgltf"]
+	path = vendor/cgltf
+	url = git@github.com:jkuhlmann/cgltf.git
