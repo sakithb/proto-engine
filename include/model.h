@@ -10,16 +10,16 @@ struct material {
 };
 
 struct mesh {
+	GLuint vao;
+	GLuint vbo_pos;
+	GLuint vbo_uvs;
+	GLuint ebo;
+
 	struct material *material;
-	GLsizei ebo_off;
-	GLsizei ebo_num;
+	size_t indices_num;
 };
 
 struct model {
-	GLuint vao;
-	GLuint vbo;
-	GLuint ebo;
-
 	struct mesh *meshes;
 	size_t meshes_num;
 

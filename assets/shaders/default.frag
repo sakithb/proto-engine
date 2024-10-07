@@ -13,7 +13,7 @@ out vec4 color;
 uniform material mat;
 
 void main() {    
-    //color = vec4((sin(uv) + 1.0f) / 2.0f, 1.0f, 1.0f);
+    // color = vec4((sin(uv) + 1.0f) / 2.0f, 1.0f, 1.0f);
 
 	if (mat.albedo_set == 1) {
 		color = texture(mat.albedo_map, uv) * mat.albedo_tint;

@@ -6,6 +6,7 @@
 #include "model.h"
 
 void process_input(GLFWwindow *window);
+void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods);
 void window_resize_cb(GLFWwindow *window, int width, int height);
 void mouse_move_cb(GLFWwindow *window, double x, double y);
 void debug_msg_cb(GLenum source, GLenum type, unsigned int id, GLenum severity, GLsizei length, const char *message, const void *userParam);
@@ -17,6 +18,7 @@ float delta_time = 0.0f;
 float last_frame = 0.0f;
 
 struct camera cam;
+GLenum mode = GL_FILL;
 
 int main() {
 	glfwInit();
@@ -34,8 +36,10 @@ int main() {
 
 	glfwMakeContextCurrent(window);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  
+	glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
 	glfwSetWindowSizeCallback(window, window_resize_cb);
 	glfwSetCursorPosCallback(window, mouse_move_cb);
+	glfwSetKeyCallback(window, key_cb);
 
 	if (!gladLoadGL(glfwGetProcAddress)) {
 		glfwTerminate();
@@ -60,7 +64,7 @@ int main() {
 	camera_init(&cam, (vec3s){0.0f, 3.0f, 10.0f});
 
 	struct model obj;
-	model_init(&obj, "assets/models/castle.model");
+	model_init(&obj, "assets/test_models/car.glb");
 
 	while(!glfwWindowShouldClose(window)) {
 		delta_time = glfwGetTime() - last_frame;
@@ -70,6 +74,8 @@ int main() {
 
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glPolygonMode(GL_FRONT_AND_BACK, mode);
 
 		glUseProgram(shader);
 
@@ -109,6 +115,16 @@ void process_input(GLFWwindow *window) {
 		camera_move(&cam, CAM_LEFT, delta_time);
 	} else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
 		camera_move(&cam, CAM_RIGHT, delta_time);
+	}
+}
+
+void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods) {
+	if (key == GLFW_KEY_M && action == GLFW_PRESS) {
+		switch (mode) {
+		case GL_FILL: mode = GL_LINE; break;
+		case GL_LINE: mode = GL_POINT; break;
+		case GL_POINT: mode = GL_FILL; break;
+		}
 	}
 }
 
