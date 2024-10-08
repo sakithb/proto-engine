@@ -30,7 +30,7 @@ void camera_rotate(struct camera *cam, float x_off, float y_off) {
 }
 
 void camera_move(struct camera *cam, enum camera_direction dir, float delta_time) {
-	float velocity = 2.5f * delta_time;
+	float velocity = 10.0f * delta_time;
 
 	if (dir == CAM_FORWARD) {
 		cam->pos = glms_vec3_add(cam->pos, glms_vec3_scale(cam->front, velocity));

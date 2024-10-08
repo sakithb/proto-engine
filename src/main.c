@@ -64,7 +64,7 @@ int main() {
 	camera_init(&cam, (vec3s){0.0f, 3.0f, 10.0f});
 
 	struct model obj;
-	model_init(&obj, "assets/test_models/car.glb");
+	model_init(&obj, "assets/models/winter_girl.glb");
 
 	while(!glfwWindowShouldClose(window)) {
 		delta_time = glfwGetTime() - last_frame;
@@ -79,7 +79,7 @@ int main() {
 
 		glUseProgram(shader);
 
-		mat4s model = GLMS_MAT4_IDENTITY;
+		mat4s model = glms_scale_uni(GLMS_MAT4_IDENTITY, 0.1f);
 		mat4s view = camera_lookat(&cam);
 		mat4s projection = glms_perspective(45.0f, (float)scr_width / scr_height, 0.1f, 100.0f);
 

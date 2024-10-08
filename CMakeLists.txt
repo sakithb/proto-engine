@@ -28,11 +28,7 @@ target_include_directories(stb INTERFACE vendor/stb)
 set(BUILD_SHARED_LIBS OFF)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-file(GLOB_RECURSE ENGINE_SRCS CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/src/engine/*.c) 
+file(GLOB_RECURSE ENGINE_SRCS CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/src/*.c) 
 add_executable(engine ${ENGINE_SRCS})
 set_property(TARGET engine PROPERTY C_STANDARD 11)
 target_link_libraries(engine PRIVATE glad glfw cgltf stb cglm_headers m)
-
-# file(GLOB_RECURSE MESH_LOADER_SRCS CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/src/mesh_loader/*.c) 
-# add_executable(mesh_loader ${MESH_LOADER_SRCS})
-# target_link_libraries(mesh_loader PRIVATE cgltf cglm_headers stb m)
