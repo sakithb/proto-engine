@@ -1,8 +1,8 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include <glad/gl.h>
-#include <cglm/cglm.h>
+#include "glad/gl.h"
+#include "cglm/cglm.h"
 
 void shader_init(GLuint *s, const char *vert_path, const char *frag_path);
 

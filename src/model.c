@@ -9,9 +9,21 @@
 
 static inline void model_process_load_image(cgltf_image *img, GLuint texture, const char *dir);
 
-struct material default_material = {NULL, (vec4s){0.5f, 0.5f, 0.5f, 1.0f}};
+GLuint default_texture;
+struct material default_material = {NULL, NULL, NULL, NULL, (vec4s){0.5f, 0.5f, 0.5f, 1.0f}, 1.0f, 1.0f};
 
 void model_init(struct model *model, const char *path) {
+	if (default_material.albedo_map == NULL) {
+		glGenTextures(1, &default_texture);
+		glBindTexture(GL_TEXTURE_2D, default_texture);
+
+		unsigned char pixel[4] = {0, 0, 0, 255};
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		default_material.albedo_map = default_material.normal_map = default_material.mr_map = default_material.ao_map = &default_texture;
+	}
+
 	char *dir_end = strrchr(path, '/');
 	size_t dir_len;
 	if (dir_end == NULL) {
@@ -74,37 +86,38 @@ void model_init(struct model *model, const char *path) {
 		cgltf_mesh *mesh = node->mesh;
 		if (mesh == NULL) continue;
 
+		cgltf_float world_mat_raw[16] = {0};
+		cgltf_node_transform_world(node, world_mat_raw);
+
+		mat4 world_mat = {0};
+		glm_mat4_make(world_mat_raw, world_mat);
+
 		for (int j = 0; j < mesh->primitives_count; j++) {
 			cgltf_primitive *prim = mesh->primitives + j;
 
 			struct mesh *mesh_o = meshes + meshes_i;
 
-			cgltf_accessor *positions = NULL, *uvs = NULL;
+			cgltf_accessor *positions = NULL, *normals = NULL, *uvs = NULL;
 
 			for (int k = 0; k < prim->attributes_count; k++) {
 				cgltf_attribute *attr = prim->attributes + k;
 				if (attr->type == cgltf_attribute_type_position) {positions = attr->data;}
+				else if (attr->type == cgltf_attribute_type_normal) {normals = attr->data;}
 				else if (attr->type == cgltf_attribute_type_texcoord) {uvs = attr->data;}
 
-				if (positions != NULL && uvs != NULL) break;
+				if (positions != NULL && uvs != NULL && normals != NULL) break;
 			}
 
 			assert(positions != NULL);
+			assert(normals != NULL);
 			assert(uvs != NULL);
 
 			size_t pos_num_floats = cgltf_accessor_unpack_floats(positions, NULL, 0);
 			float *pos_buf = callocs(pos_num_floats, sizeof(float));
 			cgltf_accessor_unpack_floats(positions, pos_buf, pos_num_floats);
 
-			cgltf_float world_mat_raw[16] = {0};
-			cgltf_node_transform_world(node, world_mat_raw);
-
-			mat4 world_mat = {0};
-			glm_mat4_make(world_mat_raw, world_mat);
-
 			for (int k = 0; k < positions->count; k++) {
 				vec4 v = {pos_buf[k*3], pos_buf[k*3+1], pos_buf[k*3+2], 1.0f};
-
 				vec4 vr = {0};
 				glm_mat4_mulv(world_mat, v, vr);
 
@@ -113,12 +126,16 @@ void model_init(struct model *model, const char *path) {
 				pos_buf[k*3+2] = vr[2];
 			}
 
+			size_t norms_num_floats = cgltf_accessor_unpack_floats(normals, NULL, 0);
+			float *norms_buf = callocs(norms_num_floats, sizeof(float));
+			cgltf_accessor_unpack_floats(normals, norms_buf, norms_num_floats);
+
 			size_t uvs_num_floats = cgltf_accessor_unpack_floats(uvs, NULL, 0);
 			float *uvs_buf = callocs(uvs_num_floats, sizeof(float));
 			cgltf_accessor_unpack_floats(uvs, uvs_buf, uvs_num_floats);
 	
 			size_t idx_num = 0;
-			GLuint *idx_buf;
+			GLuint *idx_buf = NULL;
 			if (prim->indices != NULL) {
 				idx_num = prim->indices->count;
 				idx_buf = callocs(idx_num, sizeof(GLuint));
@@ -131,30 +148,33 @@ void model_init(struct model *model, const char *path) {
 				}
 			}
 			
-			GLuint vao, vbo_pos, vbo_uvs, ebo;
+			GLuint vao, vbo, ebo;
 			glGenVertexArrays(1, &vao);
-			glGenBuffers(1, &vbo_pos);
-			glGenBuffers(1, &vbo_uvs);
+			glGenBuffers(1, &vbo);
 			glGenBuffers(1, &ebo);
 
 			glBindVertexArray(vao);
 
-			glBindBuffer(GL_ARRAY_BUFFER, vbo_pos);
-			glBufferData(GL_ARRAY_BUFFER, pos_num_floats * sizeof(float), pos_buf, GL_STATIC_DRAW);
+			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			glBufferData(GL_ARRAY_BUFFER, (pos_num_floats + norms_num_floats + uvs_num_floats) * sizeof(float), NULL, GL_STATIC_DRAW);
+
+			glBufferSubData(GL_ARRAY_BUFFER, 0, pos_num_floats * sizeof(float), pos_buf);
 			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 			glEnableVertexAttribArray(0);
 
-			glBindBuffer(GL_ARRAY_BUFFER, vbo_uvs);
-			glBufferData(GL_ARRAY_BUFFER, uvs_num_floats * sizeof(float), uvs_buf, GL_STATIC_DRAW);
-			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+			glBufferSubData(GL_ARRAY_BUFFER, pos_num_floats * sizeof(float), norms_num_floats * sizeof(float), norms_buf);
+			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(pos_num_floats * sizeof(float)));
 			glEnableVertexAttribArray(1);
+
+			glBufferSubData(GL_ARRAY_BUFFER, (pos_num_floats + norms_num_floats) * sizeof(float), uvs_num_floats * sizeof(float), uvs_buf);
+			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)((pos_num_floats + norms_num_floats) * sizeof(float)));
+			glEnableVertexAttribArray(2);
 
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 			glBufferData(GL_ELEMENT_ARRAY_BUFFER, idx_num * sizeof(GLuint), idx_buf, GL_STATIC_DRAW);
 
 			mesh_o->vao = vao;
-			mesh_o->vbo_pos = vbo_pos;
-			mesh_o->vbo_uvs = vbo_uvs;
+			mesh_o->vbo = vbo;
 			mesh_o->ebo = ebo;
 			mesh_o->indices_num = idx_num;
 
@@ -166,13 +186,40 @@ void model_init(struct model *model, const char *path) {
 					model_process_load_image(prim->material->pbr_metallic_roughness.base_color_texture.texture->image, *material->albedo_map, dir);
 					textures_i++;
 				} else {
-					material->albedo_map = NULL;
+					material->albedo_map = &default_texture;
 				}
 
-				material->albedo_tint.r = prim->material->pbr_metallic_roughness.base_color_factor[0];
-				material->albedo_tint.g = prim->material->pbr_metallic_roughness.base_color_factor[1];
-				material->albedo_tint.b = prim->material->pbr_metallic_roughness.base_color_factor[2];
-				material->albedo_tint.a = prim->material->pbr_metallic_roughness.base_color_factor[3];
+				material->albedo_factor.r = prim->material->pbr_metallic_roughness.base_color_factor[0];
+				material->albedo_factor.g = prim->material->pbr_metallic_roughness.base_color_factor[1];
+				material->albedo_factor.b = prim->material->pbr_metallic_roughness.base_color_factor[2];
+				material->albedo_factor.a = prim->material->pbr_metallic_roughness.base_color_factor[3];
+
+				if (prim->material->normal_texture.texture != NULL) {
+					material->normal_map = textures + textures_i;
+					model_process_load_image(prim->material->normal_texture.texture->image, *material->normal_map, dir);
+					textures_i++;
+				} else {
+					material->normal_map = &default_texture;
+				}
+
+				if (prim->material->pbr_metallic_roughness.metallic_roughness_texture.texture != NULL) {
+					material->mr_map = textures + textures_i;
+					model_process_load_image(prim->material->pbr_metallic_roughness.metallic_roughness_texture.texture->image, *material->mr_map, dir);
+					textures_i++;
+				} else {
+					material->mr_map = &default_texture;
+				}
+
+				material->metallic_factor = prim->material->pbr_metallic_roughness.metallic_factor;
+				material->roughness_factor = prim->material->pbr_metallic_roughness.roughness_factor;
+
+				if (prim->material->occlusion_texture.texture != NULL) {
+					material->ao_map = textures + textures_i;
+					model_process_load_image(prim->material->occlusion_texture.texture->image, *material->ao_map, dir);
+					textures_i++;
+				} else {
+					material->ao_map = &default_texture;
+				}
 
 				mesh_o->material = material;
 				materials_i++;
@@ -181,6 +228,7 @@ void model_init(struct model *model, const char *path) {
 			}
 
 			free(pos_buf);
+			free(norms_buf);
 			free(uvs_buf);
 			free(idx_buf);
 
@@ -202,17 +250,24 @@ void model_draw(struct model *model, GLuint shader) {
 	for (int i = 0; i < model->meshes_num; i++) {
 		struct mesh *mesh = model->meshes + i;
 
-		if (mesh->material->albedo_map != NULL) {
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, *mesh->material->albedo_map);
-			shader_set_int(shader, "mat.albedo_map", 0);
-			shader_set_int(shader, "mat.albedo_set", 1);
-		} else {
-			shader_set_int(shader, "mat.albedo_map", 0);
-			shader_set_int(shader, "mat.albedo_set", 0);
-		}
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, *mesh->material->albedo_map);
+		shader_set_int(shader, "material.albedo_map", 0);
+		shader_set_vec4(shader, "material.albedo_factor", mesh->material->albedo_factor.raw);
 
-		shader_set_vec4(shader, "mat.albedo_tint", mesh->material->albedo_tint.raw);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, *mesh->material->normal_map);
+		shader_set_int(shader, "material.normal_map", 1);
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, *mesh->material->mr_map);
+		shader_set_int(shader, "material.mr_map", 2);
+		shader_set_float(shader, "material.metallic_factor", mesh->material->metallic_factor);
+		shader_set_float(shader, "material.roughness_factor", mesh->material->roughness_factor);
+
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, *mesh->material->ao_map);
+		shader_set_int(shader, "material.ao_map", 3);
 
 		glBindVertexArray(mesh->vao);
 		glDrawElements(GL_TRIANGLES, mesh->indices_num, GL_UNSIGNED_INT, 0);
@@ -223,8 +278,7 @@ void model_free(struct model *model) {
 	for (int i = 0; i < model->meshes_num; i++) {
 		struct mesh *mesh = model->meshes + i;
 		glDeleteVertexArrays(1, &mesh->vao);
-		glDeleteBuffers(1, &mesh->vbo_pos);
-		glDeleteBuffers(1, &mesh->vbo_uvs);
+		glDeleteBuffers(1, &mesh->vbo);
 		glDeleteBuffers(1, &mesh->ebo);
 	}
 

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "shader.h"
 #include "memutils.h"
+#include "shader.h"
 
 void shader_init(GLuint *s, const char *vert_path, const char *frag_path) {
 	char *vert_code, *frag_code;

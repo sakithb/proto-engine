@@ -1,23 +1,26 @@
 #version 460 core
 
-struct material {
+struct pbr_material {
 	sampler2D albedo_map;
-	int albedo_set;
-	vec4 albedo_tint;
+	sampler2D normal_map;
+	sampler2D mr_map;
+	sampler2D ao_map;
+
+	vec4 albedo_factor;
+	float metallic_factor;
+	float roughness_factor;
 };
 
-in vec2 uv;
+in vec3 frag_pos;
+in vec3 frag_wpos;
+in vec3 frag_normal;
+in vec2 frag_uv;
 
-out vec4 color;
+out vec4 frag_color;
 
-uniform material mat;
+uniform pbr_material material;
 
 void main() {    
-    // color = vec4((sin(uv) + 1.0f) / 2.0f, 1.0f, 1.0f);
-
-	if (mat.albedo_set == 1) {
-		color = texture(mat.albedo_map, uv) * mat.albedo_tint;
-	} else {
-		color = mat.albedo_tint;
-	}
+	// frag_color = vec4((sin(frag_uv) + 1.0f) / 2.0f, 1.0f, 1.0f);
+	frag_color = texture(material.albedo_map, frag_uv) * material.albedo_factor;
 }

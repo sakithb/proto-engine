@@ -1,18 +1,23 @@
 #ifndef MODEL_H
 #define MODEL_H
 
-#include <glad/gl.h>
-#include <cglm/struct.h>
+#include "glad/gl.h"
+#include "cglm/struct.h"
 
 struct material {
 	GLuint *albedo_map;
-	vec4s albedo_tint;
+	GLuint *normal_map;
+	GLuint *mr_map;
+	GLuint *ao_map;
+
+	vec4s albedo_factor;
+	float metallic_factor;
+	float roughness_factor;
 };
 
 struct mesh {
 	GLuint vao;
-	GLuint vbo_pos;
-	GLuint vbo_uvs;
+	GLuint vbo;
 	GLuint ebo;
 
 	struct material *material;
