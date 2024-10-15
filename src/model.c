@@ -17,7 +17,7 @@ void model_init(struct model *model, const char *path) {
 		glGenTextures(1, &default_texture);
 		glBindTexture(GL_TEXTURE_2D, default_texture);
 
-		unsigned char pixel[4] = {0, 0, 0, 255};
+		unsigned char pixel[4] = {255, 255, 255, 255};
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
@@ -92,6 +92,10 @@ void model_init(struct model *model, const char *path) {
 		mat4 world_mat = {0};
 		glm_mat4_make(world_mat_raw, world_mat);
 
+		mat4 normal_world_mat = {0};
+		glm_mat4_inv(world_mat, normal_world_mat);
+		glm_mat4_transpose(normal_world_mat);
+
 		for (int j = 0; j < mesh->primitives_count; j++) {
 			cgltf_primitive *prim = mesh->primitives + j;
 
@@ -129,6 +133,16 @@ void model_init(struct model *model, const char *path) {
 			size_t norms_num_floats = cgltf_accessor_unpack_floats(normals, NULL, 0);
 			float *norms_buf = callocs(norms_num_floats, sizeof(float));
 			cgltf_accessor_unpack_floats(normals, norms_buf, norms_num_floats);
+
+			for (int k = 0; k < normals->count; k++) {
+				vec4 v = {norms_buf[k*3], norms_buf[k*3+1], norms_buf[k*3+2], 0.0f};
+				vec4 vr = {0};
+				glm_mat4_mulv(normal_world_mat, v, vr);
+
+				norms_buf[k*3] = vr[0];
+				norms_buf[k*3+1] = vr[1];
+				norms_buf[k*3+2] = vr[2];
+			}
 
 			size_t uvs_num_floats = cgltf_accessor_unpack_floats(uvs, NULL, 0);
 			float *uvs_buf = callocs(uvs_num_floats, sizeof(float));
