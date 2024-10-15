@@ -16,11 +16,9 @@ set(CGLM_STATIC ON)
 add_subdirectory(vendor/cglm EXCLUDE_FROM_ALL)
 
 add_library(cgltf INTERFACE)
-target_compile_definitions(cgltf INTERFACE CGLTF_IMPLEMENTATION)
 target_include_directories(cgltf INTERFACE vendor/cgltf)
 
 add_library(stb INTERFACE)
-target_compile_definitions(stb INTERFACE STB_IMAGE_IMPLEMENTATION)
 target_include_directories(stb INTERFACE vendor/stb)
 
 # Targets

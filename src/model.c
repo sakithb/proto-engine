@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string.h>
 #include <stddef.h>
 #include "glad/gl.h"
 #include "cgltf.h"
@@ -19,7 +20,6 @@ void model_init(struct model *model, const char *path) {
 
 		unsigned char pixel[4] = {255, 255, 255, 255};
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
-		glGenerateMipmap(GL_TEXTURE_2D);
 
 		default_material.albedo_map = default_material.normal_map = default_material.mr_map = default_material.ao_map = &default_texture;
 	}

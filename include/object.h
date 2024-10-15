@@ -11,7 +11,7 @@ struct object {
 	vec3s rotation;
 	vec3s scale;
 
-	struct model model;
+	struct model *model;
 };
 
 void object_init(struct object *o, const char *model);

@@ -2,6 +2,7 @@
 #define STATE_H
 
 #include "camera.h"
+#include "model_mgr.h"
 
 struct state {
 	int scr_width;
@@ -11,6 +12,7 @@ struct state {
 	float last_frame_time;
 
 	struct camera camera;
+	struct model_mgr model_mgr;
 };
 
 #endif
