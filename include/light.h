@@ -14,8 +14,13 @@ struct point_light {
 	float linear;
 	float quadratic;
 }; 
-// 
-// struct direction_light {
-// };
+
+struct directional_light {
+	vec3s direction;
+
+	vec3s ambient;
+	vec3s diffuse;
+	vec3s specular;
+};
 
 #endif
