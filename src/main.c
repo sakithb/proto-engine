@@ -23,26 +23,15 @@ int main() {
 	GLuint sky_shader;
 	shader_init(&sky_shader, "assets/shaders/skybox.vert", "assets/shaders/skybox.frag");
 
-	struct object car;
-	object_init(&car, "assets/models/hovercar.glb");
-	car.translation.x = -10.0f;
-
-	struct object man;
-	object_init(&man, "assets/models/man.glb");
-	man.translation.z = -10.0f;
-
-	struct object sorceress;
-	object_init(&sorceress, "assets/models/sorceress.glb");
-	sorceress.translation.z = 10.0f;
-	sorceress.rotation.y = glm_rad(180.0f);
-
-	struct object ground;
-	object_init(&ground, "assets/models/ground.glb");
+	struct object plane;
+	object_init(&plane, "assets/models/plane.glb");
+	plane.scale = glms_vec3_scale(plane.scale, 0.015f);
+	plane.rotation.y = glm_rad(240);
 
 	struct directional_light directional_light;
-	directional_light.direction = (vec3s){-0.2f, -1.0f, -0.3f};
-	directional_light.ambient = (vec3s){0.2f, 0.2f, 0.2f};
-	directional_light.diffuse = (vec3s){0.8f, 0.8f, 0.8f};
+	directional_light.direction = (vec3s){-0.5f, -1.0f, -0.5f};
+	directional_light.ambient = (vec3s){0.3f, 0.3f, 0.3f};
+	directional_light.diffuse = (vec3s){0.9f, 0.9f, 0.9f};
 	directional_light.specular = (vec3s){1.0f, 1.0f, 1.0f};
 
 	struct skybox skybox;
@@ -80,10 +69,7 @@ int main() {
 
 		shader_set_int(obj_shader, "lights_num", 0);
 
-		object_draw(&car, obj_shader);
-		object_draw(&man, obj_shader);
-		object_draw(&sorceress, obj_shader);
-		object_draw(&ground, obj_shader);
+		object_draw(&plane, obj_shader);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();    
@@ -91,10 +77,7 @@ int main() {
 
 	skybox_free(&skybox);
 
-	object_free(&car);
-	object_free(&man);
-	object_free(&sorceress);
-	object_free(&ground);
+	object_free(&plane);
 
 	model_mgr_free(&state.model_mgr);
 

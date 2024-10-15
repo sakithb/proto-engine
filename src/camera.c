@@ -53,7 +53,7 @@ void camera_move(struct camera *cam, enum camera_direction dir) {
 
 void camera_set_uniforms(struct camera *cam, GLuint shader) {
 	mat4s view = camera_lookat(cam);
-	mat4s projection = glms_perspective(45.0f, (float)state.scr_width/(float)state.scr_height, 0.1f, 100.0f);
+	mat4s projection = glms_perspective(45.0f, (float)state.scr_width/(float)state.scr_height, 0.1f, 1000.0f);
 	shader_set_mat4(shader, "view", view.raw);
 	shader_set_mat4(shader, "projection", projection.raw);
 	shader_set_vec3(shader, "view_pos", cam->pos.raw);
